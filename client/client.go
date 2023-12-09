@@ -1,4 +1,4 @@
-package main
+package client
 
 import (
 	"bufio"
@@ -9,7 +9,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/chatapp/types"
+	"github.com/reply/types"
 )
 
 func generateHash(n string) string {
@@ -74,7 +74,7 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 		var message types.Message
 		err := json.Unmarshal(jsonData, &message)
 		if err != nil {
-			return nil, fmt.Errorf("invalid message ata received")
+			return nil, fmt.Errorf("invalid message data received")
 		}
 		return message, nil
 	case "ABSENT":
@@ -89,12 +89,16 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 	}
 }
 
-func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, recipientHash string) {
+func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, recipientHash string, done chan<- bool) {
 	for {
 		fmt.Print(clientHash[:5], " : ")
 		scanner.Scan()
 		messageText := scanner.Text()
 
+		if messageText == "/quit" {
+			done <- true
+			return
+		}
 		// Create and send the JSON message to the server
 		message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
 
@@ -110,13 +114,11 @@ func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, r
 			os.Exit(1)
 		}
 
-		if messageText == "/quit" {
-			break
-		}
 	}
 }
 
-func main() {
+func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
+
 	fmt.Print("Enter your Name: ")
 	scanner := bufio.NewScanner(os.Stdin)
 	scanner.Scan()
@@ -126,17 +128,10 @@ func main() {
 	clientHash := generateHash(sanitzieUsername(name))
 	fmt.Println("Your client hash:", clientHash)
 
-	conn, err := net.Dial("tcp", "localhost:6980")
-	if err != nil {
-		fmt.Println("Error connecting to server:", err)
-		os.Exit(1)
-	}
-	defer conn.Close()
-
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 
 	// Send the client hash to the server
-	_, err = conn.Write([]byte(clientHash + "\n"))
+	_, err := conn.Write([]byte(clientHash + "\n"))
 	if err != nil {
 		fmt.Println("Error sending client hash to server:", err)
 		os.Exit(1)
@@ -148,12 +143,41 @@ func main() {
 	recipient := scanner.Text()
 	recipientHash := generateHash(sanitzieUsername(recipient))
 
+	return conn, *scanner, clientHash, recipientHash
+}
+
+func dialUp() (net.Conn, error) {
+	conn, err := net.Dial("tcp", "localhost:6980")
+	if err != nil {
+		return nil, err
+	}
+
+	return conn, nil
+}
+
+func ClientMain() {
+
+	conn, err := dialUp()
+	if err != nil {
+		fmt.Println("Error connecting to server:", err)
+		os.Exit(1)
+	}
+
+	defer conn.Close()
+
+	done := make(chan bool)
+
+	conn, scanner, clientHash, recipientHash := clientInit(conn)
+
 	// Start a goroutine to listen for incoming messages
 	go listenForMessages(clientHash, conn)
 
 	// Start a goroutine to send messages
-	go ReplytoMessages(conn, scanner, clientHash, recipientHash)
+	go ReplytoMessages(conn, &scanner, clientHash, recipientHash, done)
 
+	if <-done {
+		return
+	}
 	// Block forever
 	select {}
 

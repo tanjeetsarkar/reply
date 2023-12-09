@@ -25,3 +25,8 @@ func (n Message) Type() string {
 func (n Absent) Type() string {
 	return n.Action
 }
+
+type Token struct {
+	user  string
+	token string
+}

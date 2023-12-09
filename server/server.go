@@ -1,4 +1,4 @@
-package main
+package server
 
 import (
 	"bufio"
@@ -7,7 +7,7 @@ import (
 	"net"
 	"os"
 
-	"github.com/chatapp/types"
+	"github.com/reply/types"
 )
 
 // BeginStruct represents the structure of the "begin" message
@@ -101,7 +101,7 @@ func sendUnavailable(c Client) error {
 // 	fmt.Println("Sent 'begin' struct to", client.hash)
 // }
 
-func main() {
+func ServerMain() {
 	listener, err := net.Listen("tcp", "localhost:6980")
 	if err != nil {
 		fmt.Println("Error starting server:", err)

@@ -2,7 +2,6 @@ package client
 
 import (
 	"bufio"
-	"crypto/sha512"
 	"encoding/json"
 	"fmt"
 	"net"
@@ -12,19 +11,19 @@ import (
 	"github.com/reply/types"
 )
 
-func generateHash(n string) string {
-	// generate sha512 hash
-	hash := sha512.New()
-	hash.Write([]byte(n))
-	return fmt.Sprintf("%x", hash.Sum(nil))
-}
+// func generateHash(n string) string {
+// 	// generate sha512 hash
+// 	hash := sha512.New()
+// 	hash.Write([]byte(n))
+// 	return fmt.Sprintf("%x", hash.Sum(nil))
+// }
 
 func sanitzieUsername(n string) string {
 	// remove spaces from username
 	return strings.Replace(n, " ", "", -1)
 }
 
-func listenForMessages(clientHash string, conn net.Conn) {
+func listenForMessages(clientHash string, conn net.Conn, absentQ chan string) {
 	reader := bufio.NewReader(conn)
 
 	for {
@@ -45,10 +44,14 @@ func listenForMessages(clientHash string, conn net.Conn) {
 		switch message.Type() {
 		case "TEXT_MESSAGE":
 			message := message.(types.Message)
-			fmt.Println(message.From[:5], ":", message.Message)
+			fmt.Println(message.From, ":", message.Message)
 		case "ABSENT":
 			message := message.(types.Absent)
-			fmt.Println(message.SenderID[:5], "is absent")
+			fmt.Println(message.SenderID, "is absent", message)
+			go func() {
+
+				absentQ <- message.SenderID
+			}()
 		default:
 			fmt.Println("Invalid message type")
 		}
@@ -89,9 +92,10 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 	}
 }
 
-func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, recipientHash string, done chan<- bool) {
+func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, recipientHash string, done chan<- bool, msgQ chan MessageQueue, absentQ chan string) {
 	for {
-		fmt.Print(clientHash[:5], " : ")
+		go sendPendingMessages(msgQ, conn, absentQ)
+		fmt.Print(clientHash, " : ")
 		scanner.Scan()
 		messageText := scanner.Text()
 
@@ -108,12 +112,35 @@ func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, r
 			os.Exit(1)
 		}
 
-		_, err = conn.Write(append(messageJSON, '\n'))
-		if err != nil {
-			fmt.Println("Error sending JSON message to server:", err)
-			os.Exit(1)
+		msgQ <- MessageQueue{
+			To:   recipientHash,
+			msgP: messageJSON,
 		}
+	}
+}
 
+func checkRecieverOnline(reciever string, absentQ chan string, conn net.Conn) bool {
+	for user := range absentQ {
+		fmt.Println("sending msg", user)
+		if reciever == user {
+			return false
+		}
+	}
+	return true
+}
+
+func sendPendingMessages(msgQ chan MessageQueue, conn net.Conn, absentQ chan string) {
+	for msg := range msgQ {
+		go SendToServer(conn, msg.msgP)
+	}
+}
+
+func SendToServer(conn net.Conn, messageJSON []byte) {
+
+	_, err := conn.Write(append(messageJSON, '\n'))
+	if err != nil {
+		fmt.Println("Error sending JSON message to server:", err)
+		os.Exit(1)
 	}
 }
 
@@ -125,7 +152,7 @@ func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
 	name := scanner.Text()
 
 	// Generate the client hash
-	clientHash := generateHash(sanitzieUsername(name))
+	clientHash := sanitzieUsername(name)
 	fmt.Println("Your client hash:", clientHash)
 
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
@@ -141,7 +168,7 @@ func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
 	scanner = bufio.NewScanner(os.Stdin)
 	scanner.Scan()
 	recipient := scanner.Text()
-	recipientHash := generateHash(sanitzieUsername(recipient))
+	recipientHash := sanitzieUsername(recipient)
 
 	return conn, *scanner, clientHash, recipientHash
 }
@@ -166,14 +193,16 @@ func ClientMain() {
 	defer conn.Close()
 
 	done := make(chan bool)
+	msgQ := make(chan MessageQueue)
+	absentQ := make(chan string)
 
 	conn, scanner, clientHash, recipientHash := clientInit(conn)
 
 	// Start a goroutine to listen for incoming messages
-	go listenForMessages(clientHash, conn)
+	go listenForMessages(clientHash, conn, absentQ)
 
 	// Start a goroutine to send messages
-	go ReplytoMessages(conn, &scanner, clientHash, recipientHash, done)
+	go ReplytoMessages(conn, &scanner, clientHash, recipientHash, done, msgQ, absentQ)
 
 	if <-done {
 		return
@@ -181,4 +210,9 @@ func ClientMain() {
 	// Block forever
 	select {}
 
+}
+
+type MessageQueue struct {
+	To   string
+	msgP []byte
 }

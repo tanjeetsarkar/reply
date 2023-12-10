@@ -53,7 +53,7 @@ func handleClient(client Client) {
 
 		val, ok := clients[message.To]
 		if !ok {
-			err := sendUnavailable(client)
+			err := sendUnavailable(client, message.To)
 			if err != nil {
 				fmt.Println(err)
 			}
@@ -64,15 +64,20 @@ func handleClient(client Client) {
 		_, err = val.conn.Write(append(messageJSON, '\n'))
 		if err != nil {
 			fmt.Println("Error sending message to :", err)
+			err := sendUnavailable(client, message.To)
+			if err != nil {
+				fmt.Println(err)
+			}
+			fmt.Println("Reciever Unavailable")
 		}
 	}
 }
 
-func sendUnavailable(c Client) error {
+func sendUnavailable(c Client, receiver string) error {
 
 	absent := types.Absent{
 		Action:   "ABSENT",
-		SenderID: c.hash,
+		SenderID: receiver,
 	}
 
 	absentJson, err := json.Marshal(absent)
@@ -83,23 +88,6 @@ func sendUnavailable(c Client) error {
 	_, err = c.conn.Write(append(absentJson, '\n'))
 	return err
 }
-
-// func handleBegin(client Client) {
-// 	beginStruct := BeginStruct{Username: client.hash}
-
-// 	// Send the "begin" struct to the client
-// 	beginJSON, err := json.Marshal(beginStruct)
-// 	if err != nil {
-// 		fmt.Println("Error marshalling 'begin' struct:", err)
-// 		return
-// 	}
-
-// 	_, err = client.conn.Write(append(beginJSON, '\n'))
-// 	if err != nil {
-// 		fmt.Println("Error sending 'begin' struct to", client.hash, ":", err)
-// 	}
-// 	fmt.Println("Sent 'begin' struct to", client.hash)
-// }
 
 func ServerMain() {
 	listener, err := net.Listen("tcp", "localhost:6980")

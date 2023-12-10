@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -21,10 +20,11 @@ func (u *UserAuth) isAuthentic() bool {
 }
 
 func authenticate() bool {
-	fmt.Print("username: ")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	name := scanner.Text()
+	// fmt.Print("username: ")
+	// scanner := bufio.NewScanner(os.Stdin)
+	// scanner.Scan()
+	// name := scanner.Text()
+	name := "Tanjeet"
 	user := UserAuth{
 		Name:     name,
 		Password: name,

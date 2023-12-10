@@ -4,76 +4,182 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net"
 	"os"
 
+	"github.com/google/uuid"
 	"github.com/reply/types"
 )
 
-// BeginStruct represents the structure of the "begin" message
-type BeginStruct struct {
-	Username string `json:"username"`
+type User struct {
+	Name   string   `json:"name"`
+	Status string   `json:"status"`
+	Conn   net.Conn `json:"conn"`
 }
 
-// Client struct represents a connected client
-type Client struct {
-	conn net.Conn
-	hash string
+var ConnectedUsers = make(map[string]User)
+
+func ValidateAction(jsonData []byte) (types.Header, error) {
+
+	var data map[string]interface{}
+	err := json.Unmarshal([]byte(jsonData), &data)
+	if err != nil {
+		fmt.Println("Invalid data received")
+		return nil, fmt.Errorf("invalid data received")
+	}
+
+	action, ok := data["action"].(string)
+	if !ok {
+		return nil, fmt.Errorf("no action received")
+	}
+
+	switch action {
+	case "TEXT_MESSAGE":
+		var message types.Message
+		err := json.Unmarshal(jsonData, &message)
+		if err != nil {
+			return nil, fmt.Errorf("invalid message data received")
+		}
+		return message, nil
+	case "ABSENT":
+		var absent types.Absent
+		err := json.Unmarshal(jsonData, &absent)
+		if err != nil {
+			return nil, fmt.Errorf("invalid absent data received")
+		}
+		return absent, nil
+	case "USER_JOIN":
+		var status_update types.StatusUpdate
+		err := json.Unmarshal(jsonData, &status_update)
+		if err != nil {
+			return nil, fmt.Errorf("invalid absent data received")
+		}
+		return status_update, nil
+	default:
+		return nil, fmt.Errorf("invalid default data received")
+	}
 }
 
-// Channel struct represents a private communication channel
+func startListenting() net.Listener {
+	listener, err := net.Listen("tcp", "localhost:6980")
+	if err != nil {
+		fmt.Println("Error starting server:", err)
+		os.Exit(1)
+	}
+	fmt.Println("Server started. Listening on localhost:6980")
+	return listener
+}
 
-var clients = make(map[string]Client)
+func receieveBegin(conn net.Conn, connectionId string) {
+	beginJSON, err := bufio.NewReader(conn).ReadString('\n')
+	if err != nil {
+		fmt.Println("Error reading client hash:", err)
+	}
+	message, err := ValidateAction([]byte(beginJSON))
+	if err != nil {
+		fmt.Println("Error validating message:", err)
+	}
 
-func handleClient(client Client) {
-	defer client.conn.Close()
+	switch message.Type() {
+	case "USER_JOIN":
+		message := message.(types.StatusUpdate)
+		fmt.Println("User: ", message.Name, " is now Online")
+		cuser := User{
+			Name:   message.Name,
+			Status: message.Status,
+			Conn:   conn,
+		}
+		ConnectedUsers[connectionId] = cuser
+	default:
+		log.Println("Client is sending Invalid Begin Struct")
+	}
+}
 
-	reader := bufio.NewReader(client.conn)
+func createUUID() string {
+	uuid := uuid.New()
+	return uuid.String()
+}
+
+func ServerMain() {
+
+	listener := startListenting()
+
+	defer listener.Close()
+
 	for {
-		// Read the JSON message from the client
+		conn, err := listener.Accept()
+		if err != nil {
+			fmt.Println("Error accepting connection:", err)
+			continue
+		}
+
+		connectionID := createUUID()
+
+		receieveBegin(conn, connectionID)
+
+		go handleClient(conn)
+
+	}
+}
+
+func handleClient(conn net.Conn) {
+	defer conn.Close()
+
+	reader := bufio.NewReader(conn)
+
+	for {
+		for id, user := range ConnectedUsers {
+			fmt.Println(id, user.Name)
+		}
 		jsonData, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading JSON message:", err)
-			break
-		}
-		fmt.Println("Received JSON message: \n", jsonData)
-
-		var message types.Message
-		err = json.Unmarshal([]byte(jsonData), &message)
-		if err != nil {
-			fmt.Println("Error unmarshalling JSON:", err)
-			break
+			fmt.Println("Error reading message from server:", err)
+			os.Exit(1)
 		}
 
-		messageJSON, err := json.Marshal(message)
+		message, err := ValidateAction([]byte(jsonData))
 		if err != nil {
-			fmt.Println("Error marshalling JSON message:", err)
+			log.Fatalln("Error validating message:", err)
 			continue
 		}
 
-		val, ok := clients[message.To]
-		if !ok {
-			err := sendUnavailable(client, message.To)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println("Reciever Unavailable")
-			continue
-		}
-		// Send the message to the TO client
-		_, err = val.conn.Write(append(messageJSON, '\n'))
-		if err != nil {
-			fmt.Println("Error sending message to :", err)
-			err := sendUnavailable(client, message.To)
-			if err != nil {
-				fmt.Println(err)
-			}
-			fmt.Println("Reciever Unavailable")
+		switch message.Type() {
+		case "TEXT_MESSAGE":
+			message := message.(types.Message)
+			fmt.Println(message.From, ":", message.Message)
+			go checkOnlineSend(conn, message)
+		default:
+			fmt.Println("Inavlid Message Recieved", message)
 		}
 	}
 }
 
-func sendUnavailable(c Client, receiver string) error {
+func marshalTextMessage(message types.Message) []byte {
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println("Error marshalling JSON message:", err)
+	}
+	return messageJSON
+}
+
+func checkOnlineSend(conn net.Conn, message types.Message) {
+	for _, cuser := range ConnectedUsers {
+		if message.To == cuser.Name {
+			fmt.Println("sending", message.Message, "to", cuser.Name)
+			_, err := cuser.Conn.Write(append([]byte(marshalTextMessage(message)), '\n'))
+			if err != nil {
+				log.Println("Error while sending to connected client", err)
+			}
+		}
+	}
+	err := sendUnavailable(conn, message.To)
+	if err != nil {
+		fmt.Println("cant send absent: ", err)
+	}
+}
+
+func sendUnavailable(conn net.Conn, receiver string) error {
 
 	absent := types.Absent{
 		Action:   "ABSENT",
@@ -85,40 +191,6 @@ func sendUnavailable(c Client, receiver string) error {
 		return err
 	}
 
-	_, err = c.conn.Write(append(absentJson, '\n'))
+	_, err = conn.Write(append(absentJson, '\n'))
 	return err
-}
-
-func ServerMain() {
-	listener, err := net.Listen("tcp", "localhost:6980")
-	if err != nil {
-		fmt.Println("Error starting server:", err)
-		os.Exit(1)
-	}
-	defer listener.Close()
-
-	fmt.Println("Server started. Listening on localhost:6980")
-
-	for {
-		conn, err := listener.Accept()
-		if err != nil {
-			fmt.Println("Error accepting connection:", err)
-			continue
-		}
-
-		// Read the client hash from the client
-		hash, err := bufio.NewReader(conn).ReadString('\n')
-		if err != nil {
-			fmt.Println("Error reading client hash:", err)
-			continue
-		}
-		hash = hash[:len(hash)-1] // Remove the newline character
-		fmt.Println("Client connected:", hash)
-
-		client := Client{conn: conn, hash: hash}
-		clients[hash] = client
-
-		// go handleBegin(client)
-		go handleClient(client)
-	}
 }

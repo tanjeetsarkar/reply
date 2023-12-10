@@ -132,6 +132,9 @@ func checkRecieverOnline(reciever string, absentQ chan string, conn net.Conn) bo
 func sendPendingMessages(msgQ chan MessageQueue, conn net.Conn, absentQ chan string) {
 	for msg := range msgQ {
 		go SendToServer(conn, msg.msgP)
+		for ab := range absentQ {
+			fmt.Println(ab)
+		}
 	}
 }
 
@@ -157,8 +160,21 @@ func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
 
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
 
+	userJoin := types.StatusUpdate{
+		Action: "USER_JOIN",
+		Name:   clientHash,
+		Status: "ONLINE",
+	}
+
+	userJoinJSON, err := json.Marshal(userJoin)
+
+	if err != nil {
+		fmt.Println("Error marshalling JSON message:", err)
+		os.Exit(1)
+	}
+
 	// Send the client hash to the server
-	_, err := conn.Write([]byte(clientHash + "\n"))
+	_, err = conn.Write([]byte(append(userJoinJSON, '\n')))
 	if err != nil {
 		fmt.Println("Error sending client hash to server:", err)
 		os.Exit(1)

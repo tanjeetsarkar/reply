@@ -12,6 +12,12 @@ type Absent struct {
 	SenderID string `json:"sender_id"`
 }
 
+type StatusUpdate struct {
+	Action string `json:"action"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
+}
+
 type Header interface {
 	Type() string
 }
@@ -25,8 +31,6 @@ func (n Message) Type() string {
 func (n Absent) Type() string {
 	return n.Action
 }
-
-type Token struct {
-	user  string
-	token string
+func (n StatusUpdate) Type() string {
+	return n.Action
 }

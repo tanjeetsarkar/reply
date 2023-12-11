@@ -4,9 +4,11 @@ import (
 	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net"
 	"os"
+	"sync"
 
 	"github.com/google/uuid"
 	"github.com/reply/types"
@@ -18,7 +20,10 @@ type User struct {
 	Conn   net.Conn `json:"conn"`
 }
 
-var ConnectedUsers = make(map[string]User)
+var (
+	mu             sync.Mutex
+	ConnectedUsers = make(map[string]User)
+)
 
 func ValidateAction(jsonData []byte) (types.Header, error) {
 
@@ -80,7 +85,8 @@ func receieveBegin(conn net.Conn, connectionId string) {
 	if err != nil {
 		fmt.Println("Error validating message:", err)
 	}
-
+	mu.Lock()
+	defer mu.Unlock()
 	switch message.Type() {
 	case "USER_JOIN":
 		message := message.(types.StatusUpdate)
@@ -118,24 +124,28 @@ func ServerMain() {
 
 		receieveBegin(conn, connectionID)
 
-		go handleClient(conn)
+		go handleClient(conn, connectionID)
 
 	}
 }
 
-func handleClient(conn net.Conn) {
+func handleClient(conn net.Conn, connectionID string) {
 	defer conn.Close()
 
 	reader := bufio.NewReader(conn)
 
 	for {
-		for id, user := range ConnectedUsers {
-			fmt.Println(id, user.Name)
-		}
 		jsonData, err := reader.ReadString('\n')
 		if err != nil {
-			fmt.Println("Error reading message from server:", err)
-			os.Exit(1)
+			if err == io.EOF {
+				mu.Lock()
+				defer mu.Unlock()
+				fmt.Println(ConnectedUsers[connectionID].Name, " got disconnected")
+				delete(ConnectedUsers, connectionID)
+			} else {
+				fmt.Println("Error reading message from server:", err)
+			}
+			break
 		}
 
 		message, err := ValidateAction([]byte(jsonData))
@@ -164,13 +174,17 @@ func marshalTextMessage(message types.Message) []byte {
 }
 
 func checkOnlineSend(conn net.Conn, message types.Message) {
+	mu.Lock()
+	defer mu.Unlock()
 	for _, cuser := range ConnectedUsers {
 		if message.To == cuser.Name {
 			fmt.Println("sending", message.Message, "to", cuser.Name)
 			_, err := cuser.Conn.Write(append([]byte(marshalTextMessage(message)), '\n'))
 			if err != nil {
 				log.Println("Error while sending to connected client", err)
+				return
 			}
+			return
 		}
 	}
 	err := sendUnavailable(conn, message.To)

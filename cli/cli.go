@@ -5,7 +5,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/reply/client"
 	"github.com/reply/server"
 )
 
@@ -38,16 +37,7 @@ func main() {
 		return
 	}
 
-	if os.Args[1] == "client" {
-		if os.Args[2] == "start" {
-			log.Println("starting client ... ")
-			if authenticate() {
-				client.ClientMain()
-			} else {
-				log.Fatalln("Authentication Failed")
-			}
-		}
-	} else if os.Args[1] == "server" {
+	if os.Args[1] == "server" {
 		if os.Args[2] == "start" {
 			log.Println("starting Server ... ")
 			if authenticate() {

@@ -1,0 +1,59 @@
+#root {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.container {
+  margin-top: 50px;
+}
+
+.input-container {
+  margin-bottom: 20px;
+}
+.input-container-bottom {
+  margin-bottom: 20px;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  background-color: #fff;
+  padding: 20px;
+  z-index: 9999;
+}
+
+.input-container-from-to{
+  margin-bottom: 20px;
+}
+
+
+.head-container {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  background-color: #fff;
+  padding: 20px;
+  z-index: 9999;
+}
+
+input {
+  padding: 10px;
+  margin-right: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}

@@ -23,7 +23,7 @@ func sanitzieUsername(n string) string {
 	return strings.Replace(n, " ", "", -1)
 }
 
-func listenForMessages(clientHash string, conn net.Conn, absentQ chan string) {
+func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, readPump chan string) {
 	reader := bufio.NewReader(conn)
 
 	for {
@@ -45,6 +45,7 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string) {
 		case "TEXT_MESSAGE":
 			message := message.(types.Message)
 			fmt.Println(message.From, ":", message.Message)
+			readPump <- message.Message
 		case "ABSENT":
 			message := message.(types.Absent)
 			fmt.Println(message.SenderID, "is absent", message)
@@ -92,49 +93,58 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 	}
 }
 
-func ReplytoMessages(conn net.Conn, scanner *bufio.Scanner, clientHash string, recipientHash string, done chan<- bool, msgQ chan MessageQueue, absentQ chan string) {
+func ReplytoMessages(
+	conn net.Conn,
+	clientHash string,
+	recipientHash string,
+	done chan<- bool,
+	msgQ chan MessageQueue,
+	absentQ chan string,
+	writePump chan string,
+) {
 	for {
 		go sendPendingMessages(msgQ, conn, absentQ)
 		fmt.Print(clientHash, " : ")
-		scanner.Scan()
-		messageText := scanner.Text()
+		// scanner.Scan()
 
-		if messageText == "/quit" {
-			done <- true
-			return
-		}
-		// Create and send the JSON message to the server
-		message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
+		for messageText := range writePump {
 
-		messageJSON, err := json.Marshal(message)
-		if err != nil {
-			fmt.Println("Error marshalling JSON message:", err)
-			os.Exit(1)
-		}
+			// messageText := scanner.Text()
 
-		msgQ <- MessageQueue{
-			To:   recipientHash,
-			msgP: messageJSON,
+			if messageText == "/quit" {
+				done <- true
+				return
+			}
+			// Create and send the JSON message to the server
+			message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
+
+			messageJSON, err := json.Marshal(message)
+			if err != nil {
+				fmt.Println("Error marshalling JSON message:", err)
+				os.Exit(1)
+			}
+
+			msgQ <- MessageQueue{
+				To:   recipientHash,
+				msgP: messageJSON,
+			}
 		}
 	}
 }
 
-func checkRecieverOnline(reciever string, absentQ chan string, conn net.Conn) bool {
-	for user := range absentQ {
-		fmt.Println("sending msg", user)
-		if reciever == user {
-			return false
-		}
-	}
-	return true
-}
+// func checkRecieverOnline(reciever string, absentQ chan string, conn net.Conn) bool {
+// 	for user := range absentQ {
+// 		fmt.Println("sending msg", user)
+// 		if reciever == user {
+// 			return false
+// 		}
+// 	}
+// 	return true
+// }
 
 func sendPendingMessages(msgQ chan MessageQueue, conn net.Conn, absentQ chan string) {
 	for msg := range msgQ {
 		go SendToServer(conn, msg.msgP)
-		for ab := range absentQ {
-			fmt.Println(ab)
-		}
 	}
 }
 
@@ -147,12 +157,12 @@ func SendToServer(conn net.Conn, messageJSON []byte) {
 	}
 }
 
-func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
+func clientInit(conn net.Conn, from string, to string) (net.Conn, string, string) {
 
-	fmt.Print("Enter your Name: ")
-	scanner := bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	name := scanner.Text()
+	// fmt.Print("Enter your Name: ")
+	// scanner := bufio.NewScanner(os.Stdin)
+	// scanner.Scan()
+	name := from
 
 	// Generate the client hash
 	clientHash := sanitzieUsername(name)
@@ -180,13 +190,13 @@ func clientInit(conn net.Conn) (net.Conn, bufio.Scanner, string, string) {
 		os.Exit(1)
 	}
 
-	fmt.Print("Enter the recipient's username: ")
-	scanner = bufio.NewScanner(os.Stdin)
-	scanner.Scan()
-	recipient := scanner.Text()
-	recipientHash := sanitzieUsername(recipient)
+	fmt.Print("Enter the recipient's username: ", to)
+	// scanner = bufio.NewScanner(os.Stdin)
+	// scanner.Scan()
+	// recipient := scanner.Text()
+	recipientHash := sanitzieUsername(to)
 
-	return conn, *scanner, clientHash, recipientHash
+	return conn, clientHash, recipientHash
 }
 
 func dialUp() (net.Conn, error) {
@@ -198,7 +208,7 @@ func dialUp() (net.Conn, error) {
 	return conn, nil
 }
 
-func ClientMain() {
+func ClientMain(writePump chan string, readPump chan string, from string, to string) {
 
 	conn, err := dialUp()
 	if err != nil {
@@ -212,13 +222,13 @@ func ClientMain() {
 	msgQ := make(chan MessageQueue)
 	absentQ := make(chan string)
 
-	conn, scanner, clientHash, recipientHash := clientInit(conn)
+	conn, clientHash, recipientHash := clientInit(conn, from, to)
 
 	// Start a goroutine to listen for incoming messages
-	go listenForMessages(clientHash, conn, absentQ)
+	go listenForMessages(clientHash, conn, absentQ, readPump)
 
 	// Start a goroutine to send messages
-	go ReplytoMessages(conn, &scanner, clientHash, recipientHash, done, msgQ, absentQ)
+	go ReplytoMessages(conn, clientHash, recipientHash, done, msgQ, absentQ, writePump)
 
 	if <-done {
 		return

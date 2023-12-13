@@ -15,10 +15,11 @@ var upgrader = websocket.Upgrader{
 }
 
 func Wp(conn *websocket.Conn, writePump chan string) {
+	defer close(writePump) // Defer closing the writePump channel
 	for {
 		_, message, err := conn.ReadMessage()
 		if err != nil {
-			log.Println("REading error", err)
+			log.Println("Reading error", err)
 			break
 		}
 		writePump <- string(message)
@@ -26,6 +27,7 @@ func Wp(conn *websocket.Conn, writePump chan string) {
 }
 
 func Rp(conn *websocket.Conn, readPump chan string) {
+	defer close(readPump) // Defer closing the readPump channel
 	for reads := range readPump {
 		err := conn.WriteMessage(websocket.TextMessage, []byte(reads))
 		if err != nil {
@@ -37,8 +39,8 @@ func Rp(conn *websocket.Conn, readPump chan string) {
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
 	var (
-		writePump chan string
-		readPump  chan string
+		writePump = make(chan string)
+		readPump  = make(chan string)
 		from      string
 		to        string
 	)
@@ -47,9 +49,11 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
+	from = r.URL.Query().Get("from")
+	to = r.URL.Query().Get("to")
 	defer conn.Close()
 	go client.ClientMain(writePump, readPump, from, to)
-
 	go Wp(conn, writePump)
 	go Rp(conn, readPump)
+	select {}
 }

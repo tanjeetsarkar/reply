@@ -103,11 +103,13 @@ func ReplytoMessages(
 	writePump chan string,
 ) {
 	for {
-		go sendPendingMessages(msgQ, conn, absentQ)
-		fmt.Print(clientHash, " : ")
-		// scanner.Scan()
-
 		for messageText := range writePump {
+
+			go sendPendingMessages(msgQ, conn, absentQ)
+			fmt.Print(clientHash, " : ")
+			// scanner.Scan()
+
+			fmt.Println("SENDING", messageText)
 
 			// messageText := scanner.Text()
 

@@ -1,45 +1,23 @@
 import { useState } from "react";
 import "./App.css";
-function App() {
-  const [msgVal, setMsgVal] = useState<string>('');
-  const [fromMsg, setFromMsg] = useState<string>('');
-  const [toMsg, setToMsg] = useState<string>('');
-  const [messagePane, setMessagePane] = useState<any[]>([]);
-  const [ready, setReady] = useState<boolean>(false);
-  const [ws, setWs] = useState<WebSocket>();
+import { Start_client, SendMessage,RecieveMessage } from "../wailsjs/go/main/App.js";
 
-  const sendMessage = () => {
-    if (ready && ws){
-      ws.send(msgVal);
-    }
-    setMessagePane((prevMessagePane) => [...prevMessagePane, msgVal]);
+function App() {
+  const [msgVal, setMsgVal] = useState<string>("");
+  const [fromMsg, setFromMsg] = useState<string>("");
+  const [toMsg, setToMsg] = useState<string>("");
+  const [messagePane, setMessagePane] = useState<any[]>([]);
+
+  const SendChat = () => {
+    setMessagePane((prev) => [...prev, msgVal]);
+    SendMessage(msgVal);
     setMsgVal("");
   };
 
-  const handleWsStart = () => {
-    var from = fromMsg
-    var to = toMsg
-    var ws = new WebSocket(
-      "ws://192.168.150.101:5000/ws?from=" +
-        encodeURIComponent(from) +
-        "&to=" +
-        encodeURIComponent(to)
-    );
-    setWs(ws);
-    ws.onopen = () => {
-      setMessagePane((prevM) => [...prevM, `Connected`])
-      setReady(true);
-    };
-    ws.onmessage = (e) => {
-      setMessagePane((prevMessagePane) => [...prevMessagePane, e.data]);
-    };
-    ws.onclose = () => {
-      setReady(false);
-      setMessagePane((prevMessagePane) => [
-        ...prevMessagePane,
-        "Connection closed",
-      ]);
-    };
+  const startClient = () => {
+    Start_client(fromMsg, toMsg).then((res) => {
+      console.log(res);
+    });
   };
 
   return (
@@ -60,7 +38,7 @@ function App() {
             onChange={(e) => setToMsg(e.target.value)}
             placeholder="To"
           />
-          <button type="submit" onClick={handleWsStart}>
+          <button type="submit" onClick={startClient}>
             Start
           </button>
         </div>
@@ -68,7 +46,6 @@ function App() {
 
       <div
         style={{
-          border: "1px solid black",
           minWidth: "400px",
           minHeight: "200px",
           maxHeight: "200px",
@@ -93,14 +70,14 @@ function App() {
           type="text"
           value={msgVal}
           onChange={(e) => setMsgVal(e.target.value)}
+          placeholder="Message"
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              sendMessage();
+              SendChat();
             }
           }}
-          placeholder="Message"
         />
-        <button type="submit" onClick={sendMessage}>
+        <button type="submit" onClick={SendChat}>
           Send
         </button>
       </div>

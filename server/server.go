@@ -67,7 +67,7 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 }
 
 func startListenting() net.Listener {
-	listener, err := net.Listen("tcp", "localhost:6980")
+	listener, err := net.Listen("tcp", "0.0.0.0:6980")
 	if err != nil {
 		fmt.Println("Error starting server:", err)
 		os.Exit(1)

@@ -43,6 +43,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		readPump  = make(chan string)
 		from      string
 		to        string
+		done      = make(chan bool)
 	)
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -52,7 +53,7 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	from = r.URL.Query().Get("from")
 	to = r.URL.Query().Get("to")
 	defer conn.Close()
-	go client.ClientMain(writePump, readPump, from, to)
+	go client.ClientMain(writePump, readPump, from, to, done)
 	go Wp(conn, writePump)
 	go Rp(conn, readPump)
 	select {}

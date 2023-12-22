@@ -23,7 +23,7 @@ func sanitzieUsername(n string) string {
 	return strings.Replace(n, " ", "", -1)
 }
 
-func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, readPump chan string) {
+func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, readPump chan string, done chan<- bool) {
 	reader := bufio.NewReader(conn)
 
 	for {
@@ -31,7 +31,13 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 		// read the message from the server
 		if err != nil {
 			fmt.Println("Error reading message from server:", err)
-			os.Exit(1)
+			if err.Error() == "EOF" {
+				fmt.Println("Server closed connection")
+				go func() {
+					done <- true
+				}()
+				return
+			}
 		}
 
 		// Validate the message
@@ -114,7 +120,9 @@ func ReplytoMessages(
 			// messageText := scanner.Text()
 
 			if messageText == "/quit" {
-				done <- true
+				go func() {
+					done <- true
+				}()
 				return
 			}
 			// Create and send the JSON message to the server
@@ -210,7 +218,7 @@ func dialUp() (net.Conn, error) {
 	return conn, nil
 }
 
-func ClientMain(writePump chan string, readPump chan string, from string, to string) {
+func ClientMain(writePump chan string, readPump chan string, from string, to string, done chan bool) {
 
 	conn, err := dialUp()
 	if err != nil {
@@ -220,14 +228,13 @@ func ClientMain(writePump chan string, readPump chan string, from string, to str
 
 	defer conn.Close()
 
-	done := make(chan bool)
 	msgQ := make(chan MessageQueue)
 	absentQ := make(chan string)
 
 	conn, clientHash, recipientHash := clientInit(conn, from, to)
 
 	// Start a goroutine to listen for incoming messages
-	go listenForMessages(clientHash, conn, absentQ, readPump)
+	go listenForMessages(clientHash, conn, absentQ, readPump, done)
 
 	// Start a goroutine to send messages
 	go ReplytoMessages(conn, clientHash, recipientHash, done, msgQ, absentQ, writePump)
@@ -237,7 +244,6 @@ func ClientMain(writePump chan string, readPump chan string, from string, to str
 	}
 	// Block forever
 	select {}
-
 }
 
 type MessageQueue struct {

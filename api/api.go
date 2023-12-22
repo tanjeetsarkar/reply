@@ -18,6 +18,6 @@ func main() {
 	r.Handle("/*", http.StripPrefix("/", fs))
 	r.HandleFunc("/ws", serveWs)
 
-	http.ListenAndServe(":5000", r)
+	http.ListenAndServe("0.0.0.0:5000", r)
 
 }

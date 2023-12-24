@@ -1,12 +1,26 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import "./App.css";
-import { Start_client, SendMessage,RecieveMessage } from "../wailsjs/go/main/App.js";
+import { Start_client, SendMessage } from "../wailsjs/go/main/App.js";
+import { EventsOn } from "../wailsjs/runtime";
 
 function App() {
   const [msgVal, setMsgVal] = useState<string>("");
   const [fromMsg, setFromMsg] = useState<string>("");
   const [toMsg, setToMsg] = useState<string>("");
   const [messagePane, setMessagePane] = useState<any[]>([]);
+
+  useEffect(() => {
+    EventsOn("clientStarted", (message: string) => {
+      if (message && message.length > 0) {
+        setMessagePane((prevMessagePane) => [...prevMessagePane, message]);
+      }
+    });
+    EventsOn("recieveMessage", (message) => {
+      if (message && message.length > 0) {
+        setMessagePane((prevMessagePane) => [...prevMessagePane, message]);
+      }
+    });
+  }, []);
 
   const SendChat = () => {
     setMessagePane((prev) => [...prev, msgVal]);
@@ -15,9 +29,7 @@ function App() {
   };
 
   const startClient = () => {
-    Start_client(fromMsg, toMsg).then((res) => {
-      console.log(res);
-    });
+    Start_client(fromMsg, toMsg);
   };
 
   return (

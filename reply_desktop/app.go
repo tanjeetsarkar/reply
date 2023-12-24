@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/reply/client"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
 // App struct
@@ -44,19 +45,22 @@ var (
 	done      = make(chan bool)
 )
 
-func (a *App) Start_client(from string, to string) string {
+func (a *App) Start_client(from string, to string) {
 	go func() {
 		done <- false
 	}()
 	go client.ClientMain(writePump, readPump, from, to, done)
-	return "Client started"
+	runtime.EventsEmit(a.ctx, "clientStarted", "Client Started")
+	go func() {
+		for {
+			for reads := range readPump {
+				runtime.EventsEmit(a.ctx, "recieveMessage", reads)
+			}
+		}
+	}()
 }
 
 func (a *App) SendMessage(message string) string {
 	writePump <- message
 	return "Message sent"
-}
-
-func (a *App) RecieveMessage() string {
-	return <-readPump
 }

@@ -20,7 +20,7 @@ function App() {
     var from = fromMsg
     var to = toMsg
     var ws = new WebSocket(
-      "ws://192.168.150.101:5000/ws?from=" +
+      "ws://192.168.0.105:5000/ws?from=" +
         encodeURIComponent(from) +
         "&to=" +
         encodeURIComponent(to)

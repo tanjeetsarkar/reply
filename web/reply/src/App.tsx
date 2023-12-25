@@ -1,24 +1,25 @@
 import { useState } from "react";
 import "./App.css";
 function App() {
-  const [msgVal, setMsgVal] = useState<string>('');
-  const [fromMsg, setFromMsg] = useState<string>('');
-  const [toMsg, setToMsg] = useState<string>('');
+  const [msgVal, setMsgVal] = useState<string>("");
+  const [fromMsg, setFromMsg] = useState<string>("");
+  const [toMsg, setToMsg] = useState<string>("");
   const [messagePane, setMessagePane] = useState<any[]>([]);
   const [ready, setReady] = useState<boolean>(false);
   const [ws, setWs] = useState<WebSocket>();
 
   const sendMessage = () => {
-    if (ready && ws){
+    if (ready && ws) {
       ws.send(msgVal);
     }
-    setMessagePane((prevMessagePane) => [...prevMessagePane, msgVal]);
+    let msgObj = {place: "right", message: msgVal}
+    setMessagePane((prevMessagePane) => [...prevMessagePane, msgObj]);
     setMsgVal("");
   };
 
   const handleWsStart = () => {
-    var from = fromMsg
-    var to = toMsg
+    var from = fromMsg;
+    var to = toMsg;
     var ws = new WebSocket(
       "ws://192.168.0.105:5000/ws?from=" +
         encodeURIComponent(from) +
@@ -27,17 +28,20 @@ function App() {
     );
     setWs(ws);
     ws.onopen = () => {
-      setMessagePane((prevM) => [...prevM, `Connected`])
+      let msgObj = {place: "center", message: `Connected`}
+      setMessagePane((prevM) => [...prevM, msgObj]);
       setReady(true);
     };
     ws.onmessage = (e) => {
-      setMessagePane((prevMessagePane) => [...prevMessagePane, e.data]);
+      let msgObj = {place: "left", message: e.data}
+      setMessagePane((prevMessagePane) => [...prevMessagePane, msgObj]);
     };
     ws.onclose = () => {
       setReady(false);
+      let msgObj = {place: "center", message: `Connection closed`}
       setMessagePane((prevMessagePane) => [
         ...prevMessagePane,
-        "Connection closed",
+        msgObj,
       ]);
     };
   };
@@ -80,11 +84,17 @@ function App() {
         <ul
           style={{
             listStyleType: "none",
-            textAlign: "left", // Add this line to align list items to the left
           }}
         >
           {messagePane.map((item, index) => (
-            <li key={index}>{item}</li>
+            <li
+              style={{
+                textAlign: item.place// Add this line to align list items to the left
+              }}
+              key={index}
+            >
+              {item.message}
+            </li>
           ))}
         </ul>
       </div>

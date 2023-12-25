@@ -28,7 +28,7 @@ func NewConnectedUserRepo(db *sql.DB) *ConnectedUserDb {
 	return &ConnectedUserDb{db: db}
 }
 
-func initializeDB(dbPath string, createScript string) (*sql.DB, error) {
+func InitializeDB(dbPath string, createScript string) (*sql.DB, error) {
 	_, err := os.Stat(dbPath)
 	if os.IsNotExist(err) {
 		db, err := sql.Open("sqlite3", dbPath)

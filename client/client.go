@@ -18,7 +18,7 @@ import (
 // 	return fmt.Sprintf("%x", hash.Sum(nil))
 // }
 
-func sanitzieUsername(n string) string {
+func SanitzieUsername(n string) string {
 	// remove spaces from username
 	return strings.Replace(n, " ", "", -1)
 }
@@ -102,31 +102,30 @@ func ValidateAction(jsonData []byte) (types.Header, error) {
 func ReplytoMessages(
 	conn net.Conn,
 	clientHash string,
-	recipientHash string,
 	done chan<- bool,
 	msgQ chan MessageQueue,
 	absentQ chan string,
-	writePump chan string,
+	writePump chan types.Message,
 ) {
 	for {
-		for messageText := range writePump {
+		for message := range writePump {
 
 			go sendPendingMessages(msgQ, conn, absentQ)
 			fmt.Print(clientHash, " : ")
 			// scanner.Scan()
 
-			fmt.Println("SENDING", messageText)
+			fmt.Println("SENDING", message.Message)
 
 			// messageText := scanner.Text()
 
-			if messageText == "/quit" {
+			if message.Message == "/quit" {
 				go func() {
 					done <- true
 				}()
 				return
 			}
 			// Create and send the JSON message to the server
-			message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
+			// message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
 
 			messageJSON, err := json.Marshal(message)
 			if err != nil {
@@ -135,7 +134,6 @@ func ReplytoMessages(
 			}
 
 			msgQ <- MessageQueue{
-				To:   recipientHash,
 				msgP: messageJSON,
 			}
 		}
@@ -167,7 +165,7 @@ func SendToServer(conn net.Conn, messageJSON []byte) {
 	}
 }
 
-func clientInit(conn net.Conn, from string, to string) (net.Conn, string, string) {
+func clientInit(conn net.Conn, from string) (net.Conn, string) {
 
 	// fmt.Print("Enter your Name: ")
 	// scanner := bufio.NewScanner(os.Stdin)
@@ -175,7 +173,7 @@ func clientInit(conn net.Conn, from string, to string) (net.Conn, string, string
 	name := from
 
 	// Generate the client hash
-	clientHash := sanitzieUsername(name)
+	clientHash := SanitzieUsername(name)
 	fmt.Println("Your client hash:", clientHash)
 
 	fmt.Println("Connected to server: ", conn.RemoteAddr())
@@ -200,13 +198,11 @@ func clientInit(conn net.Conn, from string, to string) (net.Conn, string, string
 		os.Exit(1)
 	}
 
-	fmt.Print("Enter the recipient's username: ", to)
 	// scanner = bufio.NewScanner(os.Stdin)
 	// scanner.Scan()
 	// recipient := scanner.Text()
-	recipientHash := sanitzieUsername(to)
 
-	return conn, clientHash, recipientHash
+	return conn, clientHash
 }
 
 func dialUp() (net.Conn, error) {
@@ -218,7 +214,7 @@ func dialUp() (net.Conn, error) {
 	return conn, nil
 }
 
-func ClientMain(writePump chan string, readPump chan string, from string, to string, done chan bool) {
+func ClientMain(writePump chan types.Message, readPump chan string, from string, done chan bool) {
 
 	conn, err := dialUp()
 	if err != nil {
@@ -231,13 +227,13 @@ func ClientMain(writePump chan string, readPump chan string, from string, to str
 	msgQ := make(chan MessageQueue)
 	absentQ := make(chan string)
 
-	conn, clientHash, recipientHash := clientInit(conn, from, to)
+	conn, clientHash := clientInit(conn, from)
 
 	// Start a goroutine to listen for incoming messages
 	go listenForMessages(clientHash, conn, absentQ, readPump, done)
 
 	// Start a goroutine to send messages
-	go ReplytoMessages(conn, clientHash, recipientHash, done, msgQ, absentQ, writePump)
+	go ReplytoMessages(conn, clientHash, done, msgQ, absentQ, writePump)
 
 	if <-done {
 		return
@@ -247,6 +243,5 @@ func ClientMain(writePump chan string, readPump chan string, from string, to str
 }
 
 type MessageQueue struct {
-	To   string
 	msgP []byte
 }

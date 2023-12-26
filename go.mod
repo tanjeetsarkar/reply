@@ -37,5 +37,6 @@ require (
 	github.com/go-chi/docgen v1.2.0
 	github.com/go-chi/render v1.0.3
 	github.com/gorilla/websocket v1.5.1
+	github.com/mattn/go-sqlite3 v1.14.19
 	github.com/wailsapp/wails/v2 v2.6.0
 )

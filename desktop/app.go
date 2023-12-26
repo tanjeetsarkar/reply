@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/reply/client"
+	"github.com/reply/models"
+	"github.com/reply/types"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
 
@@ -40,16 +42,16 @@ func (a *App) Greet(name string) string {
 }
 
 var (
-	writePump = make(chan string)
+	writePump = make(chan types.Message)
 	readPump  = make(chan string)
 	done      = make(chan bool)
 )
 
-func (a *App) Start_client(from string, to string) {
+func (a *App) Start_client(from string) {
 	go func() {
 		done <- false
 	}()
-	go client.ClientMain(writePump, readPump, from, to, done)
+	go client.ClientMain(writePump, readPump, from, done)
 	runtime.EventsEmit(a.ctx, "clientStarted", "Client Started")
 	go func() {
 		for {
@@ -60,7 +62,25 @@ func (a *App) Start_client(from string, to string) {
 	}()
 }
 
-func (a *App) SendMessage(message string) string {
+func (a *App) SendMessage(messageText string, from string, to string) string {
+	clientHash := client.SanitzieUsername(from)
+	recipientHash := client.SanitzieUsername(to)
+	message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: messageText}
 	writePump <- message
 	return "Message sent"
+}
+
+func (a *App) AddContact(name string, uid string) bool {
+
+	contact := models.ContactsList{
+		Name: name,
+		Uid:  uid,
+	}
+
+	return models.ContactsInsert(contact)
+
+}
+
+func (a *App) GetContacts() []models.ContactsList {
+	return models.ContactsGetAll()
 }

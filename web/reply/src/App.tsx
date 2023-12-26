@@ -19,12 +19,9 @@ function App() {
 
   const handleWsStart = () => {
     var from = fromMsg;
-    var to = toMsg;
     var ws = new WebSocket(
       "ws://192.168.0.105:5000/ws?from=" +
-        encodeURIComponent(from) +
-        "&to=" +
-        encodeURIComponent(to)
+        encodeURIComponent(from)
     );
     setWs(ws);
     ws.onopen = () => {

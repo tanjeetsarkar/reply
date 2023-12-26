@@ -6,6 +6,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/reply/client"
+	"github.com/reply/types"
 )
 
 var upgrader = websocket.Upgrader{
@@ -14,7 +15,7 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func Wp(conn *websocket.Conn, writePump chan string) {
+func Wp(conn *websocket.Conn, writePump chan types.Message) {
 	defer close(writePump) // Defer closing the writePump channel
 	for {
 		_, message, err := conn.ReadMessage()
@@ -22,7 +23,8 @@ func Wp(conn *websocket.Conn, writePump chan string) {
 			log.Println("Reading error", err)
 			break
 		}
-		writePump <- string(message)
+		// implement message marshal here to create type.Message.
+		writePump <- message
 	}
 }
 
@@ -39,10 +41,9 @@ func Rp(conn *websocket.Conn, readPump chan string) {
 
 func serveWs(w http.ResponseWriter, r *http.Request) {
 	var (
-		writePump = make(chan string)
+		writePump = make(chan types.Message)
 		readPump  = make(chan string)
 		from      string
-		to        string
 		done      = make(chan bool)
 	)
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -51,9 +52,8 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	from = r.URL.Query().Get("from")
-	to = r.URL.Query().Get("to")
 	defer conn.Close()
-	go client.ClientMain(writePump, readPump, from, to, done)
+	go client.ClientMain(writePump, readPump, from, done)
 	go Wp(conn, writePump)
 	go Rp(conn, readPump)
 	select {}

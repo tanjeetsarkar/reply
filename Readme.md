@@ -4,7 +4,7 @@ Steps to start developing:
 2. install go from official source. (go version 1.21.1)
 3. node v 18.13.o LTS
 
-Write now we are only implementing desktop version of app. Hence,
+Right now we are only implementing desktop version of app. Hence,
 
 4. cd desktop/
 5. Install wails from official repo:

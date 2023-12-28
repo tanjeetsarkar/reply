@@ -10,7 +10,11 @@ function App() {
 
   const sendMessage = () => {
     if (ready && ws) {
-      ws.send(msgVal);
+      let writePush = {
+        to: toMsg,
+        message: msgVal,
+      }
+      ws.send(JSON.stringify(writePush));
     }
     let msgObj = {place: "right", message: msgVal}
     setMessagePane((prevMessagePane) => [...prevMessagePane, msgObj]);
@@ -21,7 +25,7 @@ function App() {
     var from = fromMsg;
     var ws = new WebSocket(
       "ws://192.168.0.105:5000/ws?from=" +
-        encodeURIComponent(from)
+      encodeURIComponent(from)
     );
     setWs(ws);
     ws.onopen = () => {

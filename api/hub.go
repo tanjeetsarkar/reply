@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"log"
 	"net/http"
 
@@ -15,15 +16,29 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin:     func(r *http.Request) bool { return true },
 }
 
-func Wp(conn *websocket.Conn, writePump chan types.Message) {
+type WritePush struct {
+	To      string `json:"to"`
+	Message string `json:"message"`
+}
+
+func Wp(conn *websocket.Conn, writePump chan types.Message, from string) {
 	defer close(writePump) // Defer closing the writePump channel
 	for {
-		_, message, err := conn.ReadMessage()
+		_, messageText, err := conn.ReadMessage()
 		if err != nil {
 			log.Println("Reading error", err)
 			break
 		}
-		// implement message marshal here to create type.Message.
+		var wp WritePush
+		err = json.Unmarshal(messageText, &wp)
+		if err != nil {
+			log.Println("Unmarshal error", err)
+			continue
+		}
+		clientHash := client.SanitzieUsername(from)
+		recipientHash := client.SanitzieUsername(wp.To)
+		message := types.Message{Action: "TEXT_MESSAGE", From: clientHash, To: recipientHash, Message: wp.Message}
+		// implement message unmarshal here to create type.Message.
 		writePump <- message
 	}
 }
@@ -43,7 +58,6 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 	var (
 		writePump = make(chan types.Message)
 		readPump  = make(chan string)
-		from      string
 		done      = make(chan bool)
 	)
 	conn, err := upgrader.Upgrade(w, r, nil)
@@ -51,10 +65,10 @@ func serveWs(w http.ResponseWriter, r *http.Request) {
 		log.Println(err)
 		return
 	}
-	from = r.URL.Query().Get("from")
+	from := r.URL.Query().Get("from")
 	defer conn.Close()
 	go client.ClientMain(writePump, readPump, from, done)
-	go Wp(conn, writePump)
+	go Wp(conn, writePump, from)
 	go Rp(conn, readPump)
 	select {}
 }

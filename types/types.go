@@ -1,7 +1,5 @@
 package types
 
-import "time"
-
 type Message struct {
 	Action  string `json:"action"`
 	From    string `json:"from"`
@@ -15,10 +13,9 @@ type Absent struct {
 }
 
 type StatusUpdate struct {
-	Action string    `json:"action"`
-	Name   string    `json:"name"`
-	Status string    `json:"status"`
-	Time   time.Time `json:"time"`
+	Action string `json:"action"`
+	Name   string `json:"name"`
+	Status string `json:"status"`
 }
 
 type Header interface {

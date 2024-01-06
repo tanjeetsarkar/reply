@@ -22,9 +22,14 @@ type User struct {
 	LastSeen time.Time `json:"last_seen"`
 }
 
+func (u *User) updateTime() {
+	u.LastSeen = time.Now()
+	fmt.Println(u.Name, "last seen at", u.LastSeen)
+}
+
 var (
 	mu             sync.Mutex
-	ConnectedUsers = make(map[string]User)
+	ConnectedUsers = make(map[string]*User)
 )
 
 func ValidateAction(jsonData []byte) (types.Header, error) {
@@ -78,7 +83,7 @@ func startListenting() net.Listener {
 	return listener
 }
 
-func receieveBegin(conn net.Conn, connectionId string) {
+func receieveBegin(conn net.Conn, connectionId string) error {
 	beginJSON, err := bufio.NewReader(conn).ReadString('\n')
 	if err != nil {
 		fmt.Println("Error reading client hash:", err)
@@ -93,16 +98,18 @@ func receieveBegin(conn net.Conn, connectionId string) {
 	case "USER_JOIN":
 		message := message.(types.StatusUpdate)
 		fmt.Println("User: ", message.Name, " is now Online")
-		fmt.Println("Joined at: ", message.Time)
+		fmt.Println("Joined at: ", time.Now())
 		cuser := User{
 			Name:     message.Name,
 			Status:   message.Status,
 			Conn:     conn,
-			LastSeen: message.Time,
+			LastSeen: time.Now(),
 		}
-		ConnectedUsers[connectionId] = cuser
+		ConnectedUsers[connectionId] = &cuser
+		return nil
 	default:
 		log.Println("Client is sending Invalid Begin Struct")
+		return fmt.Errorf("invalid begin struct")
 	}
 }
 
@@ -126,10 +133,11 @@ func ServerMain() {
 
 		connectionID := createUUID()
 
-		receieveBegin(conn, connectionID)
-
+		err = receieveBegin(conn, connectionID)
+		if err != nil {
+			continue
+		}
 		go handleClient(conn, connectionID)
-
 	}
 }
 
@@ -139,6 +147,9 @@ func handleClient(conn net.Conn, connectionID string) {
 	reader := bufio.NewReader(conn)
 
 	for {
+		go func() {
+			ConnectedUsers[connectionID].updateTime()
+		}()
 		jsonData, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -155,7 +166,7 @@ func handleClient(conn net.Conn, connectionID string) {
 		message, err := ValidateAction([]byte(jsonData))
 		if err != nil {
 			log.Fatalln("Error validating message:", err)
-			continue
+			break
 		}
 
 		switch message.Type() {
@@ -181,6 +192,7 @@ func checkOnlineSend(conn net.Conn, message types.Message) {
 	mu.Lock()
 	defer mu.Unlock()
 	for _, cuser := range ConnectedUsers {
+		fmt.Println(cuser.Name)
 		if message.To == cuser.Name {
 			fmt.Println("sending", message.Message, "to", cuser.Name)
 			_, err := cuser.Conn.Write(append([]byte(marshalTextMessage(message)), '\n'))

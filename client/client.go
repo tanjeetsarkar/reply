@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/reply/types"
 )
@@ -182,6 +183,7 @@ func clientInit(conn net.Conn, from string) (net.Conn, string) {
 		Action: "USER_JOIN",
 		Name:   clientHash,
 		Status: "ONLINE",
+		Time:   time.Now(),
 	}
 
 	userJoinJSON, err := json.Marshal(userJoin)

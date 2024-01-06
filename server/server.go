@@ -9,15 +9,17 @@ import (
 	"net"
 	"os"
 	"sync"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/reply/types"
 )
 
 type User struct {
-	Name   string   `json:"name"`
-	Status string   `json:"status"`
-	Conn   net.Conn `json:"conn"`
+	Name     string    `json:"name"`
+	Status   string    `json:"status"`
+	Conn     net.Conn  `json:"conn"`
+	LastSeen time.Time `json:"last_seen"`
 }
 
 var (
@@ -91,10 +93,12 @@ func receieveBegin(conn net.Conn, connectionId string) {
 	case "USER_JOIN":
 		message := message.(types.StatusUpdate)
 		fmt.Println("User: ", message.Name, " is now Online")
+		fmt.Println("Joined at: ", message.Time)
 		cuser := User{
-			Name:   message.Name,
-			Status: message.Status,
-			Conn:   conn,
+			Name:     message.Name,
+			Status:   message.Status,
+			Conn:     conn,
+			LastSeen: message.Time,
 		}
 		ConnectedUsers[connectionId] = cuser
 	default:

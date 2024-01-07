@@ -9,14 +9,8 @@ import (
 	"strings"
 
 	"github.com/reply/types"
+	validation "github.com/reply/util"
 )
-
-// func generateHash(n string) string {
-// 	// generate sha512 hash
-// 	hash := sha512.New()
-// 	hash.Write([]byte(n))
-// 	return fmt.Sprintf("%x", hash.Sum(nil))
-// }
 
 func SanitzieUsername(n string) string {
 	// remove spaces from username
@@ -41,7 +35,7 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 		}
 
 		// Validate the message
-		message, err := ValidateAction([]byte(messageJSON))
+		message, err := validation.ValidateAction([]byte(messageJSON))
 		if err != nil {
 			fmt.Println("Error validating message:", err)
 			continue
@@ -62,40 +56,6 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 		default:
 			fmt.Println("Invalid message type")
 		}
-	}
-}
-
-func ValidateAction(jsonData []byte) (types.Header, error) {
-
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(jsonData), &data)
-	if err != nil {
-		fmt.Println("Invalid data received")
-		return nil, fmt.Errorf("invalid data received")
-	}
-
-	action, ok := data["action"].(string)
-	if !ok {
-		return nil, fmt.Errorf("no action received")
-	}
-
-	switch action {
-	case "TEXT_MESSAGE":
-		var message types.Message
-		err := json.Unmarshal(jsonData, &message)
-		if err != nil {
-			return nil, fmt.Errorf("invalid message data received")
-		}
-		return message, nil
-	case "ABSENT":
-		var absent types.Absent
-		err := json.Unmarshal(jsonData, &absent)
-		if err != nil {
-			return nil, fmt.Errorf("invalid absent data received")
-		}
-		return absent, nil
-	default:
-		return nil, fmt.Errorf("invalid default data received")
 	}
 }
 
@@ -139,16 +99,6 @@ func ReplytoMessages(
 		}
 	}
 }
-
-// func checkRecieverOnline(reciever string, absentQ chan string, conn net.Conn) bool {
-// 	for user := range absentQ {
-// 		fmt.Println("sending msg", user)
-// 		if reciever == user {
-// 			return false
-// 		}
-// 	}
-// 	return true
-// }
 
 func sendPendingMessages(msgQ chan MessageQueue, conn net.Conn, absentQ chan string) {
 	for msg := range msgQ {

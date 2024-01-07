@@ -13,6 +13,7 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/reply/types"
+	validation "github.com/reply/util"
 )
 
 type User struct {
@@ -32,47 +33,6 @@ var (
 	ConnectedUsers = make(map[string]*User)
 )
 
-func ValidateAction(jsonData []byte) (types.Header, error) {
-
-	var data map[string]interface{}
-	err := json.Unmarshal([]byte(jsonData), &data)
-	if err != nil {
-		fmt.Println("Invalid data received")
-		return nil, fmt.Errorf("invalid data received")
-	}
-
-	action, ok := data["action"].(string)
-	if !ok {
-		return nil, fmt.Errorf("no action received")
-	}
-
-	switch action {
-	case "TEXT_MESSAGE":
-		var message types.Message
-		err := json.Unmarshal(jsonData, &message)
-		if err != nil {
-			return nil, fmt.Errorf("invalid message data received")
-		}
-		return message, nil
-	case "ABSENT":
-		var absent types.Absent
-		err := json.Unmarshal(jsonData, &absent)
-		if err != nil {
-			return nil, fmt.Errorf("invalid absent data received")
-		}
-		return absent, nil
-	case "USER_JOIN":
-		var status_update types.StatusUpdate
-		err := json.Unmarshal(jsonData, &status_update)
-		if err != nil {
-			return nil, fmt.Errorf("invalid absent data received")
-		}
-		return status_update, nil
-	default:
-		return nil, fmt.Errorf("invalid default data received")
-	}
-}
-
 func startListenting() net.Listener {
 	listener, err := net.Listen("tcp", "0.0.0.0:6980")
 	if err != nil {
@@ -88,7 +48,7 @@ func receieveBegin(conn net.Conn, connectionId string) error {
 	if err != nil {
 		fmt.Println("Error reading client hash:", err)
 	}
-	message, err := ValidateAction([]byte(beginJSON))
+	message, err := validation.ValidateAction([]byte(beginJSON))
 	if err != nil {
 		fmt.Println("Error validating message:", err)
 	}
@@ -119,6 +79,9 @@ func createUUID() string {
 }
 
 func ServerMain() {
+	// go func() {
+	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
+	// }()
 
 	listener := startListenting()
 
@@ -163,7 +126,7 @@ func handleClient(conn net.Conn, connectionID string) {
 			break
 		}
 
-		message, err := ValidateAction([]byte(jsonData))
+		message, err := validation.ValidateAction([]byte(jsonData))
 		if err != nil {
 			log.Fatalln("Error validating message:", err)
 			break

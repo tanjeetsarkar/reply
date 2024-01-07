@@ -51,6 +51,7 @@ func receieveBegin(conn net.Conn, connectionId string) error {
 	message, err := validation.ValidateAction([]byte(beginJSON))
 	if err != nil {
 		fmt.Println("Error validating message:", err)
+		return err
 	}
 	mu.Lock()
 	defer mu.Unlock()
@@ -98,6 +99,7 @@ func ServerMain() {
 
 		err = receieveBegin(conn, connectionID)
 		if err != nil {
+			conn.Close()
 			continue
 		}
 		go handleClient(conn, connectionID)

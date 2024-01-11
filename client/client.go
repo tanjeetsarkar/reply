@@ -17,7 +17,7 @@ func SanitzieUsername(n string) string {
 	return strings.Replace(n, " ", "", -1)
 }
 
-func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, readPump chan string, done chan<- bool) {
+func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, readPump chan string, done chan<- bool, nac *ActiveChat) {
 	reader := bufio.NewReader(conn)
 
 	for {
@@ -53,6 +53,9 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 
 				absentQ <- message.SenderID
 			}()
+		case "STATUS_RESPONSE":
+			message := message.(types.StatusResponse)
+			fmt.Println(message.Chash, "Last Seen at: ", message.LastSeen)
 		default:
 			fmt.Println("Invalid message type")
 		}
@@ -66,9 +69,12 @@ func ReplytoMessages(
 	msgQ chan MessageQueue,
 	absentQ chan string,
 	writePump chan types.Message,
+	nac *ActiveChat,
 ) {
 	for {
 		for message := range writePump {
+			nac.SetRhash(message.To)
+			CheckStatus(conn, nac)
 
 			go sendPendingMessages(msgQ, conn, absentQ)
 			fmt.Print(clientHash, " : ")
@@ -179,13 +185,17 @@ func ClientMain(writePump chan types.Message, readPump chan string, from string,
 
 	conn, clientHash := clientInit(conn, from)
 
+	nac := NewActiveChat()
+
 	// Start a goroutine to listen for incoming messages
-	go listenForMessages(clientHash, conn, absentQ, readPump, done)
+	go listenForMessages(clientHash, conn, absentQ, readPump, done, nac)
 
 	// Start a goroutine to send messages
-	go ReplytoMessages(conn, clientHash, done, msgQ, absentQ, writePump)
+	go ReplytoMessages(conn, clientHash, done, msgQ, absentQ, writePump, nac)
 
 	if <-done {
+		close(msgQ)
+		close(absentQ)
 		return
 	}
 	// Block forever
@@ -194,4 +204,43 @@ func ClientMain(writePump chan types.Message, readPump chan string, from string,
 
 type MessageQueue struct {
 	msgP []byte
+}
+
+// func NewMessageQueue() *MessageQueue {
+// 	return &MessageQueue{}
+// }
+
+type ActiveChat struct {
+	Rhash string
+}
+
+func NewActiveChat() *ActiveChat {
+	return &ActiveChat{}
+}
+
+func (ac *ActiveChat) SetRhash(rhash string) {
+	ac.Rhash = rhash
+}
+
+func CheckStatus(conn net.Conn, ac *ActiveChat) {
+
+	fmt.Println("Checking status of", ac.Rhash)
+
+	if ac.Rhash != "" {
+
+		checkStatus := types.CheckStatus{
+			Action: "CHECK_STATUS",
+			Chash:  ac.Rhash,
+		}
+
+		checkStatusJSON, err := json.Marshal(checkStatus)
+
+		if err != nil {
+			fmt.Println("Error marshalling JSON message:", err)
+			os.Exit(1)
+		}
+
+		SendToServer(conn, checkStatusJSON)
+	}
+
 }

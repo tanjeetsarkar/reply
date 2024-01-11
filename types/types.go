@@ -18,6 +18,17 @@ type StatusUpdate struct {
 	Status string `json:"status"`
 }
 
+type CheckStatus struct {
+	Action string `json:"action"`
+	Chash  string `json:"c_hash"`
+}
+
+type StatusResponse struct {
+	Action   string `json:"action"`
+	Chash    string `json:"c_hash"`
+	LastSeen string `json:"last_seen"`
+}
+
 type Header interface {
 	Type() string
 }
@@ -32,5 +43,11 @@ func (n Absent) Type() string {
 	return n.Action
 }
 func (n StatusUpdate) Type() string {
+	return n.Action
+}
+func (n CheckStatus) Type() string {
+	return n.Action
+}
+func (n StatusResponse) Type() string {
 	return n.Action
 }

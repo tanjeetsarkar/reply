@@ -25,7 +25,6 @@ type User struct {
 
 func (u *User) updateTime() {
 	u.LastSeen = time.Now()
-	fmt.Println(u.Name, "last seen at", u.LastSeen)
 }
 
 var (
@@ -112,9 +111,7 @@ func handleClient(conn net.Conn, connectionID string) {
 	reader := bufio.NewReader(conn)
 
 	for {
-		go func() {
-			ConnectedUsers[connectionID].updateTime()
-		}()
+		ConnectedUsers[connectionID].updateTime()
 		jsonData, err := reader.ReadString('\n')
 		if err != nil {
 			if err == io.EOF {
@@ -139,10 +136,44 @@ func handleClient(conn net.Conn, connectionID string) {
 			message := message.(types.Message)
 			fmt.Println(message.From, ":", message.Message)
 			go checkOnlineSend(conn, message)
+		// case "CHECK_STATUS":
+		// 	message := message.(types.CheckStatus)
+		// 	fmt.Println("Checking status of", message.Chash)
+		// 	mu.Lock()
+		// 	defer mu.Unlock()
+		// 	if user, ok := ConnectedUsers[message.Chash]; ok {
+		// 		fmt.Println("User", user.Name, "is online")
+		// 		statusResponse := types.StatusResponse{
+		// 			Action:   "STATUS_RESPONSE",
+		// 			Chash:    message.Chash,
+		// 			LastSeen: user.LastSeen.String(),
+		// 		}
+		// 		_, err := conn.Write(append(marshalStatusResponse(statusResponse), '\n'))
+		// 		if err != nil {
+		// 			fmt.Println("Error sending status response:", err)
+		// 		}
+		// 	} else {
+		// 		fmt.Println("User is offline")
+		// 		err := sendUnavailable(conn, message.Chash)
+		// 		if err != nil {
+		// 			fmt.Println("cant send absent: ", err)
+		// 		}
+		// 	}
+		case "CHECK_STATUS":
+			message := message.(types.CheckStatus)
+			fmt.Println("Checking status of : ", message.Chash)
 		default:
 			fmt.Println("Inavlid Message Recieved", message)
 		}
 	}
+}
+
+func marshalStatusResponse(message types.StatusResponse) []byte {
+	messageJSON, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println("Error marshalling JSON message:", err)
+	}
+	return messageJSON
 }
 
 func marshalTextMessage(message types.Message) []byte {

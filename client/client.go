@@ -21,6 +21,7 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 	reader := bufio.NewReader(conn)
 
 	for {
+		CheckStatus(conn, nac)
 		messageJSON, err := reader.ReadString('\n')
 		// read the message from the server
 		if err != nil {
@@ -74,7 +75,6 @@ func ReplytoMessages(
 	for {
 		for message := range writePump {
 			nac.SetRhash(message.To)
-			CheckStatus(conn, nac)
 
 			go sendPendingMessages(msgQ, conn, absentQ)
 			fmt.Print(clientHash, " : ")

@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/reply/types"
 	validation "github.com/reply/util"
@@ -57,6 +58,7 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 		case "STATUS_RESPONSE":
 			message := message.(types.StatusResponse)
 			fmt.Println(message.Chash, "Last Seen at: ", message.LastSeen)
+			nac.SetLastSeen(message.LastSeen)
 		default:
 			fmt.Println("Invalid message type")
 		}
@@ -211,7 +213,8 @@ type MessageQueue struct {
 // }
 
 type ActiveChat struct {
-	Rhash string
+	Rhash    string
+	LastSeen time.Time
 }
 
 func NewActiveChat() *ActiveChat {
@@ -220,6 +223,10 @@ func NewActiveChat() *ActiveChat {
 
 func (ac *ActiveChat) SetRhash(rhash string) {
 	ac.Rhash = rhash
+}
+
+func (ac *ActiveChat) SetLastSeen(lastSeen time.Time) {
+	ac.LastSeen = lastSeen
 }
 
 func CheckStatus(conn net.Conn, ac *ActiveChat) {

@@ -1,5 +1,7 @@
 package types
 
+import "time"
+
 type Message struct {
 	Action  string `json:"action"`
 	From    string `json:"from"`
@@ -24,9 +26,9 @@ type CheckStatus struct {
 }
 
 type StatusResponse struct {
-	Action   string `json:"action"`
-	Chash    string `json:"c_hash"`
-	LastSeen string `json:"last_seen"`
+	Action   string    `json:"action"`
+	Chash    string    `json:"c_hash"`
+	LastSeen time.Time `json:"last_seen"`
 }
 
 type Header interface {

@@ -22,7 +22,7 @@ func listenForMessages(clientHash string, conn net.Conn, absentQ chan string, re
 	reader := bufio.NewReader(conn)
 
 	for {
-		CheckStatus(conn, nac)
+		go CheckStatus(conn, nac)
 		messageJSON, err := reader.ReadString('\n')
 		// read the message from the server
 		if err != nil {
@@ -231,9 +231,8 @@ func (ac *ActiveChat) SetLastSeen(lastSeen time.Time) {
 
 func CheckStatus(conn net.Conn, ac *ActiveChat) {
 
-	fmt.Println("Checking status of", ac.Rhash)
-
 	if ac.Rhash != "" {
+		fmt.Println("Checking status of", ac.Rhash)
 
 		checkStatus := types.CheckStatus{
 			Action: "CHECK_STATUS",

@@ -11,7 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/google/uuid"
+	// _ "net/http/pprof"
+
 	"github.com/reply/types"
 	validation "github.com/reply/util"
 )
@@ -81,11 +82,6 @@ func receieveBegin(conn net.Conn) (chash string, err error) {
 	}
 }
 
-func createUUID() string {
-	uuid := uuid.New()
-	return uuid.String()
-}
-
 func ServerMain() {
 	// go func() {
 	// 	log.Println(http.ListenAndServe("localhost:6060", nil))
@@ -142,29 +138,6 @@ func handleClient(conn net.Conn, chash string) {
 			message := message.(types.Message)
 			fmt.Println(message.From, ":", message.Message)
 			go checkOnlineSend(conn, message)
-		// case "CHECK_STATUS":
-		// 	message := message.(types.CheckStatus)
-		// 	fmt.Println("Checking status of", message.Chash)
-		// 	mu.Lock()
-		// 	defer mu.Unlock()
-		// 	if user, ok := ConnectedUsers[message.Chash]; ok {
-		// 		fmt.Println("User", user.Name, "is online")
-		// 		statusResponse := types.StatusResponse{
-		// 			Action:   "STATUS_RESPONSE",
-		// 			Chash:    message.Chash,
-		// 			LastSeen: user.LastSeen.String(),
-		// 		}
-		// 		_, err := conn.Write(append(marshalStatusResponse(statusResponse), '\n'))
-		// 		if err != nil {
-		// 			fmt.Println("Error sending status response:", err)
-		// 		}
-		// 	} else {
-		// 		fmt.Println("User is offline")
-		// 		err := sendUnavailable(conn, message.Chash)
-		// 		if err != nil {
-		// 			fmt.Println("cant send absent: ", err)
-		// 		}
-		// 	}
 		case "CHECK_STATUS":
 			message := message.(types.CheckStatus)
 			fmt.Println("Checking status of : ", message.Chash)

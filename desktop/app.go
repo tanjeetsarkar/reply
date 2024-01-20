@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/reply/client"
+	"github.com/reply/clientv2"
 	"github.com/reply/models"
 	"github.com/reply/types"
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -28,9 +29,6 @@ func (a *App) startup(ctx context.Context) {
 
 func (a *App) shutdown(ctx context.Context) {
 	fmt.Println("Shutting down...")
-	go func() {
-		done <- true
-	}()
 	close(done)
 	close(writePump)
 	close(readPump)
@@ -43,21 +41,20 @@ func (a *App) Greet(name string) string {
 
 var (
 	writePump = make(chan types.Message)
-	readPump  = make(chan string)
-	done      = make(chan bool)
+	readPump  = make(chan types.Message)
+	done      = make(chan struct{})
 )
 
-func (a *App) Start_client(from string) {
-	go func() {
-		done <- false
-	}()
-	go client.ClientMain(writePump, readPump, from, done)
+const TCPADDR = "192.168.0.105:6980"
+
+func (a *App) Start_client(clientID string) {
+	c := clientv2.NewClientV2(clientID, writePump, readPump, TCPADDR)
+	c.SendAuth()
+	c.IOloop(done)
 	runtime.EventsEmit(a.ctx, "clientStarted", "Client Started")
 	go func() {
-		for {
-			for reads := range readPump {
-				runtime.EventsEmit(a.ctx, "recieveMessage", reads)
-			}
+		for reads := range readPump {
+			runtime.EventsEmit(a.ctx, "recieveMessage", reads.Message)
 		}
 	}()
 }

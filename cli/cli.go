@@ -36,10 +36,11 @@ func authenticate() bool {
 func startClientV2() {
 	writePump := make(chan types.Message)
 	readPump := make(chan types.Message)
+	activePump := make(chan types.StatusResponse)
 	tcpAddr := "192.168.0.105:6980"
 	clientId := os.Args[3]
 
-	c := clientv2.NewClientV2(clientId, writePump, readPump, tcpAddr)
+	c := clientv2.NewClientV2(clientId, writePump, readPump, activePump, tcpAddr)
 	c.SendAuth()
 	go func() {
 

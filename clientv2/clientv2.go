@@ -14,7 +14,7 @@ import (
 type ClientV2 struct {
 	WritePump  chan types.Message
 	ReadPump   chan types.Message
-	ActivePump chan string
+	ActivePump chan types.StatusResponse
 	net.Conn
 	Hostname string
 	ActiveTo string
@@ -22,7 +22,11 @@ type ClientV2 struct {
 	Reader   *bufio.Reader
 }
 
-func NewClientV2(clientId string, writePump chan types.Message, readPump chan types.Message, tcpAddr string) *ClientV2 {
+func NewClientV2(clientId string,
+	writePump chan types.Message,
+	readPump chan types.Message,
+	ActivePump chan types.StatusResponse,
+	tcpAddr string) *ClientV2 {
 	conn, err := net.Dial("tcp", tcpAddr)
 
 	if err != nil {
@@ -59,7 +63,22 @@ func (c *ClientV2) SendAuth() {
 }
 
 func (c *ClientV2) CheckLastSeen(checkClientID string) {
+	checkStatus := types.CheckStatus{
+		Action: "CHECK_STATUS",
+		Chash:  checkClientID,
+	}
 
+	checkStatusJSON, err := json.Marshal(checkStatus)
+
+	if err != nil {
+		log.Println("Error marshalling JSON message:", err)
+	}
+
+	_, err = c.Write([]byte(append(checkStatusJSON, '\n')))
+
+	if err != nil {
+		log.Println("Error writing Check Status to server : ", err)
+	}
 }
 
 func (c *ClientV2) SendTextMessage() {
@@ -99,6 +118,10 @@ func (c *ClientV2) ListenForMessages() {
 		case "ABSENT":
 			message := message.(types.Absent)
 			fmt.Println(message.SenderID, "is offline")
+		case "STATUS_RESPONSE":
+			message := message.(types.StatusResponse)
+			c.ActivePump <- message
+			fmt.Println(message.Chash, "Last Seen at: ", message.LastSeen)
 		default:
 			fmt.Println("Invalid message type")
 		}

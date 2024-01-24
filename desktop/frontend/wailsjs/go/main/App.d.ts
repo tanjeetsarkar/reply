@@ -6,8 +6,6 @@ export function AddContact(arg1:string,arg2:string):Promise<boolean>;
 
 export function GetContacts():Promise<Array<models.ContactsList>>;
 
-export function Greet(arg1:string):Promise<string>;
-
 export function SendMessage(arg1:string,arg2:string,arg3:string):Promise<string>;
 
 export function Start_client(arg1:string):Promise<void>;

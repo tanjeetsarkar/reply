@@ -6,6 +6,7 @@ import { EventsOn } from "../wailsjs/runtime";
 function App() {
   const [msgVal, setMsgVal] = useState<string>("");
   const [fromMsg, setFromMsg] = useState<string>("");
+  const [serverAddress, setServerAddress] = useState<string>("192.168.0.105:6980");
   const [toMsg, setToMsg] = useState<string>("");
   const [messagePane, setMessagePane] = useState<any[]>([]);
   const [contactList, setContactList] = useState<any[]>([]);
@@ -44,6 +45,12 @@ function App() {
     <div className="container">
       <div className="head-container">
 
+          <input
+            type="text"
+            value={serverAddress}
+            onChange={(e) => setServerAddress(e.target.value)}
+            placeholder="Server Address"
+          />
         <div className="input-container-from-to">
           <input
             type="text"
@@ -52,9 +59,6 @@ function App() {
             placeholder="From"
           />
           <select
-            style={{
-
-            }}
             name="to"
             id="to"
             onChange={(e) => setToMsg(e.target.value)}

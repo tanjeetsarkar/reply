@@ -34,21 +34,17 @@ func (a *App) shutdown(ctx context.Context) {
 	close(readPump)
 }
 
-// Greet returns a greeting for the given name
-func (a *App) Greet(name string) string {
-	return fmt.Sprintf("Hello %s, It's show time!", name)
-}
-
 var (
-	writePump = make(chan types.Message)
-	readPump  = make(chan types.Message)
-	done      = make(chan struct{})
+	writePump  = make(chan types.Message)
+	readPump   = make(chan types.Message)
+	activePump = make(chan types.StatusResponse)
+	done       = make(chan struct{})
 )
 
 const TCPADDR = "192.168.0.105:6980"
 
 func (a *App) Start_client(clientID string) {
-	c := clientv2.NewClientV2(clientID, writePump, readPump, TCPADDR)
+	c := clientv2.NewClientV2(clientID, writePump, readPump, activePump, TCPADDR)
 	c.SendAuth()
 	c.IOloop(done)
 	runtime.EventsEmit(a.ctx, "clientStarted", "Client Started")

@@ -1,38 +1,46 @@
 import { useEffect, useState } from "react";
 import "./App.css";
-import { Start_client, SendMessage,GetContacts,AddContact } from "../wailsjs/go/main/App.js";
+import {
+  Start_client,
+  SendMessage,
+  GetContacts,
+  AddContact,
+} from "../wailsjs/go/main/App.js";
 import { EventsOn } from "../wailsjs/runtime";
 
 function App() {
   const [msgVal, setMsgVal] = useState<string>("");
   const [fromMsg, setFromMsg] = useState<string>("");
-  const [serverAddress, setServerAddress] = useState<string>("192.168.0.105:6980");
+  const [serverAddress, setServerAddress] =
+    useState<string>("192.168.0.105:6980");
   const [toMsg, setToMsg] = useState<string>("");
   const [messagePane, setMessagePane] = useState<any[]>([]);
   const [contactList, setContactList] = useState<any[]>([]);
 
   useEffect(() => {
-    EventsOn("clientStarted", (message: string) => {
+    EventsOn("clientStarted", (message) => {
       if (message && message.length > 0) {
         setMessagePane((prevMessagePane) => [...prevMessagePane, message]);
       }
     });
     EventsOn("recieveMessage", (message) => {
       if (message && message.length > 0) {
-        setMessagePane((prevMessagePane) => [...prevMessagePane, message]);
+        let msgObj = { type: "recieve", message: message };
+        setMessagePane((prevMessagePane) => [...prevMessagePane, msgObj]);
       }
     });
   }, []);
 
   useEffect(() => {
     GetContacts().then((res) => {
-      console.log("response",res)
+      console.log("response", res);
       setContactList(res);
-    })
-  },[])
+    });
+  }, []);
 
   const SendChat = () => {
-    setMessagePane((prev) => [...prev, msgVal]);
+    let msgObj = { type: "send", message: msgVal };
+    setMessagePane((prev) => [...prev, msgObj]);
     SendMessage(msgVal, fromMsg, toMsg);
     setMsgVal("");
   };
@@ -44,13 +52,12 @@ function App() {
   return (
     <div className="container">
       <div className="head-container">
-
-          <input
-            type="text"
-            value={serverAddress}
-            onChange={(e) => setServerAddress(e.target.value)}
-            placeholder="Server Address"
-          />
+        <input
+          type="text"
+          value={serverAddress}
+          onChange={(e) => setServerAddress(e.target.value)}
+          placeholder="Server Address"
+        />
         <div className="input-container-from-to">
           <input
             type="text"
@@ -65,9 +72,10 @@ function App() {
             value={toMsg}
           >
             <option value="">To</option>
-            {contactList && contactList.map((contact) => (
-              <option value={contact.name}>{contact.name}</option>
-            ))}
+            {contactList &&
+              contactList.map((contact) => (
+                <option value={contact.name}>{contact.name}</option>
+              ))}
           </select>
           <button type="submit" onClick={startClient}>
             Start
@@ -78,6 +86,7 @@ function App() {
       <div
         style={{
           minWidth: "400px",
+          maxWidth: "90%",
           minHeight: "200px",
           maxHeight: "200px",
           overflow: "auto",
@@ -88,11 +97,20 @@ function App() {
         <ul
           style={{
             listStyleType: "none",
-            textAlign: "left", // Add this line to align list items to the left
+            // textAlign: "right", // Add this line to align list items to the left
           }}
         >
           {messagePane.map((item, index) => (
-            <li key={index}>{item}</li>
+            <li
+              className={
+                item.type == "recieve"
+                  ? "text-message text-recieve"
+                  : "text-message text-send"
+              }
+              key={index}
+            >
+              {item.message}
+            </li>
           ))}
         </ul>
       </div>

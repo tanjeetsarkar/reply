@@ -1,57 +1,72 @@
 #root {
-    max-width: 1280px;
-    margin: 0 auto;
-    padding: 2rem;
-  }
-  
-  .container {
-    margin-top: 50px;
-  }
-  
-  .input-container {
-    margin-bottom: 20px;
-  }
-  .input-container-bottom {
-    margin-bottom: 20px;
-    position: fixed;
-    bottom: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    text-align: center;
-    padding: 20px;
-    z-index: 9999;
-  }
-  
-  .input-container-from-to{
-    margin-bottom: 20px;
-  }
-  
-  
-  .head-container {
-    position: fixed;
-    top: 0;
-    left: 50%;
-    transform: translateX(-50%);
-    width: 100%;
-    text-align: center;
-    padding: 20px;
-    z-index: 9999;
-  }
-  
-  input {
-    padding: 10px;
-    margin-right: 10px;
-  }
-  
-  button {
-    padding: 10px 20px;
-    background-color: #007bff;
-    border: none;
-    cursor: pointer;
-  }
-  
-  button:hover {
-    background-color: #0056b3;
-  }
-  
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.container {
+  margin-top: 50px;
+}
+
+.input-container {
+  margin-bottom: 20px;
+}
+.input-container-bottom {
+  margin-bottom: 20px;
+  position: fixed;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  z-index: 9999;
+}
+
+.input-container-from-to {
+  margin-bottom: 20px;
+}
+
+.head-container {
+  position: fixed;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 100%;
+  text-align: center;
+  padding: 20px;
+  z-index: 9999;
+}
+
+input {
+  padding: 10px;
+  margin-right: 10px;
+}
+
+button {
+  padding: 10px 20px;
+  background-color: #007bff;
+  border: none;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+.text-message {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 20px;
+  margin-top: 20px;
+}
+
+.text-send {
+  background-color: #007bff;
+  text-align: right;
+}
+
+.text-receive {
+  background-color: #26262d;
+  text-align: left;
+}
